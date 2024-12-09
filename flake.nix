@@ -4,7 +4,7 @@
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
   inputs.nixtea.url = "github:rsbear/nixtea";
 
-  outputs = inputs @ {flake-parts, ...}:
+  outputs = inputs @ {flake-parts, nixtea, ...}:
     flake-parts.lib.mkFlake {inherit inputs;} {
       systems = ["x86_64-linux" "aarch64-linux" "aarch64-darwin" "x86_64-darwin"];
 
@@ -21,7 +21,7 @@
         vendorHash = null; # update whenever go.mod changes
       in {
         packages = {
-          nixtea = inputs'.nixtea.packages.${system}.default;
+          nixtea = nixtea.packages.${system}.default;
 
         };
       };
