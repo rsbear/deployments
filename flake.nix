@@ -2,10 +2,9 @@
   description = "walross deployments";
 
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-  inputs.nixtea.url = "github:rsbear/nixtea";
   inputs.walrossweb.url = "github:rsbear/walrossweb";
 
-  outputs = inputs @ {flake-parts, walrossweb, nixtea, ...}:
+  outputs = inputs @ {flake-parts, walrossweb, ...}:
     flake-parts.lib.mkFlake {inherit inputs;} {
       systems = ["x86_64-linux" "aarch64-linux" "aarch64-darwin" "x86_64-darwin"];
 
@@ -48,7 +47,6 @@
         '';
       in {
         packages = {
-          nixtea = nixtea.packages.${system}.default;
           walrossweb = walrossweb.packages.${system}.default;
           caddy-server = customCaddy;
         };
