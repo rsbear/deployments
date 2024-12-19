@@ -2,6 +2,7 @@
   description = "walross deployments";
 
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+  inputs.flake-parts.url = "github:hercules-ci/flake-parts";
   inputs.walrossweb.url = "github:rsbear/walrossweb";
 
   outputs = inputs @ {flake-parts, walrossweb, ...}:
@@ -36,13 +37,10 @@
 
         # Create a wrapped Caddy package with our config
         customCaddy = pkgs.writeShellScriptBin "caddy-server" ''
-          # Ensure the Caddy directory exists
           mkdir -p /var/lib/caddy
-
-          # Write our config to a file
-          echo '${caddyConfig}' > /var/lib/caddy/Caddyfile
-
-          # Start Caddy with our config
+          cat > /var/lib/caddy/Caddyfile <<'EOF'
+          ${caddyConfig}
+          EOF
           exec ${pkgs.caddy}/bin/caddy run --config /var/lib/caddy/Caddyfile
         '';
       in {
