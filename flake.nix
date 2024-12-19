@@ -37,11 +37,17 @@
 
         # Create a wrapped Caddy package with our config
         customCaddy = pkgs.writeShellScriptBin "caddy-server" ''
-          mkdir -p /var/lib/caddy
-          cat > /var/lib/caddy/Caddyfile <<'EOF'
+          # Create a temporary directory for Caddy files
+          CADDY_DIR="$HOME/.local/share/caddy"
+          mkdir -p "$CADDY_DIR"
+
+          # Write config to the local directory
+          cat > "$CADDY_DIR/Caddyfile" <<'EOF'
           ${caddyConfig}
           EOF
-          exec ${pkgs.caddy}/bin/caddy run --config /var/lib/caddy/Caddyfile
+
+          echo "Starting Caddy with config from $CADDY_DIR/Caddyfile..."
+          exec ${pkgs.caddy}/bin/caddy run --config "$CADDY_DIR/Caddyfile"
         '';
       in {
         packages = {
