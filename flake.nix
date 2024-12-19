@@ -1,14 +1,11 @@
 {
   description = "walross deployments";
-
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
   inputs.flake-parts.url = "github:hercules-ci/flake-parts";
   inputs.walrossweb.url = "github:rsbear/walrossweb";
-
   outputs = inputs @ {flake-parts, walrossweb, ...}:
     flake-parts.lib.mkFlake {inherit inputs;} {
       systems = ["x86_64-linux" "aarch64-linux" "aarch64-darwin" "x86_64-darwin"];
-
       perSystem = {
         config,
         self',
@@ -18,41 +15,56 @@
         ...
       }: let
         name = "rossdeploys";
-
-        caddyConfig = ''
-          {
-            # Global options
-            admin off  # Disable admin interface for security
-            persist_config off  # Don't persist config to disk since we manage it via Nix
+        # VCL configuration for Varnish
+        varnishConfig = ''
+          vcl 4.0;
+          
+          backend default {
+            .host = "127.0.0.1";
+            .port = "8080";
           }
-
-          walross.co {
-            reverse_proxy localhost:8080
+          
+          sub vcl_recv {
+            # Handle different domains
+            if (req.http.host == "walross.co") {
+              return (pass);
+            }
+            elsif (req.http.host == "git.walross.co") {
+              # Return static response for git subdomain
+              return (synth(200, "Git service coming soon!"));
+            }
           }
-
-          git.walross.co {
-            respond "Git service coming soon!" 200  # Placeholder response
+          
+          sub vcl_synth {
+            if (resp.status == 200) {
+              set resp.http.Content-Type = "text/plain";
+              synthetic(resp.reason);
+              return (deliver);
+            }
           }
         '';
-
-        # Create a wrapped Caddy package with our config
-        customCaddy = pkgs.writeShellScriptBin "caddy-server" ''
-          # Create a temporary directory for Caddy files
-          CADDY_DIR="$HOME/.local/share/caddy"
-          mkdir -p "$CADDY_DIR"
-
+        
+        # Create a wrapped Varnish package with our config
+        customVarnish = pkgs.writeShellScriptBin "varnish-server" ''
+          VARNISH_DIR="$HOME/.local/share/varnish"
+          mkdir -p "$VARNISH_DIR"
+          
           # Write config to the local directory
-          cat > "$CADDY_DIR/Caddyfile" <<'EOF'
-          ${caddyConfig}
+          cat > "$VARNISH_DIR/default.vcl" <<'EOF'
+          ${varnishConfig}
           EOF
-
-          echo "Starting Caddy with config from $CADDY_DIR/Caddyfile..."
-          exec ${pkgs.caddy}/bin/caddy run --config "$CADDY_DIR/Caddyfile"
+          
+          echo "Starting Varnish with config from $VARNISH_DIR/default.vcl..."
+          exec ${pkgs.varnish}/bin/varnishd \
+            -F \
+            -f "$VARNISH_DIR/default.vcl" \
+            -a :80 \
+            -s malloc,256m
         '';
       in {
         packages = {
           walrossweb = walrossweb.packages.${system}.default;
-          caddy-server = customCaddy;
+          varnish-server = customVarnish;
         };
       };
     };
